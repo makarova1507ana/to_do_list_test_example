@@ -1,100 +1,134 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Task Manager</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .task { border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
+        .completed { text-decoration: line-through; color: grey; }
+    </style>
 </head>
-<style>
-    ul {
-        list-style-type: none;
-    }
-</style>
-
 <body>
-    <!-- список задач -->
 
-    <ul>
+<h2>Добавить новую задачу</h2>
+<form id="taskForm">
+    <label>Название задачи: <input type="text" id="title" maxlength="100" required></label><br><br>
+    <label>Описание: <textarea id="description" maxlength="500"></textarea></label><br><br>
+    <label>Приоритет:
+        <select id="priority" required>
+            <option value="low">Низкий</option>
+            <option value="medium">Средний</option>
+            <option value="high">Высокий</option>
+        </select>
+    </label><br><br>
+    <label>Срок выполнения: <input type="date" id="dueDate" required></label><br><br>
+    <button type="submit">Создать задачу</button>
+</form>
 
-    </ul>
-    <label>ваша задача</label>
-    <input type="text" id="task-input">
-    <button id="add-task">добавить задачу</button>
-    <button id="delete-task">Удалить задачу</button>
+<h2>Список задач</h2>
+<div id="taskList"></div>
 
+<h3>Фильтры</h3>
+<label>Статус:
+    <select id="statusFilter">
+        <option value="all">Все</option>
+        <option value="completed">Выполненные</option>
+        <option value="notCompleted">Невыполненные</option>
+    </select>
+</label>
+<label>Приоритет:
+    <select id="priorityFilter">
+        <option value="all">Все</option>
+        <option value="low">Низкий</option>
+        <option value="medium">Средний</option>
+        <option value="high">Высокий</option>
+    </select>
+</label>
+<button onclick="applyFilters()">Применить фильтры</button>
 
-</body>
 <script>
-    let task_list = document.querySelector('ul');
-    let task_input = document.getElementById('task-input');
-    let btn_add_task = document.getElementById('add-task');
-    let btn_delete_task = document.getElementById('delete-task');
+    let tasks = [];
 
-    document.addEventListener('DOMContentLoaded', loadTasks); // дожидаемся полной загрузки дома и загружаем задачи
-
-    // получить задачу и добавить в дом
-    function addTask(task_text) {
-        task_input.value = '';
-        li = document.createElement('li');
-        li.innerHTML = '<input type="checkbox">' + task_text;
-        task_list.append(li);
-
-        saveTasks();
-    }
-
-    function deleteTask() {
-
-        //console.log(tasks[0].firstChild.checked);//input с чекбоксом и смотрим отмечен или нет
-        let i = 0;
-        while (true) {
-            let tasks = document.getElementsByTagName('li'); //наши задачи
-            //  console.log(tasks, i)
-            if (tasks[i].firstChild.checked) {
-
-                tasks[i].remove();
-
-            } else {
-                i++;
-            }
-            if (i >= tasks.length) {
-                break;
-            }
-        }
-        saveTasks();
-    }
-    btn_delete_task.addEventListener('click', deleteTask);
-
-    btn_add_task.addEventListener('click', function() {
-        if (task_input.value != '') { // Пустые задачи не добавлять
-            task = task_input.value;
-            addTask(task);
-        }
+    // Создание задачи
+    document.getElementById('taskForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        
+        const task = {
+            id: Date.now(),
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            priority: document.getElementById('priority').value,
+            dueDate: document.getElementById('dueDate').value,
+            completed: false
+        };
+        
+        tasks.push(task);
+        displayTasks();
+        this.reset();
     });
 
-
-    // сохранение задач при закрытие и обновление страницы
-    function saveTasks() {
-        let task_array = [];
-        let tasks = document.getElementsByTagName('li'); //наши задачи, которые в доме
-        for (task of tasks) {
-            task_array.push(task.textContent); //добавляем в конец массива текст задачи
-        }
-        //console.log(task_array);
-        //установим в локальное хранилище
-        localStorage.setItem('tasks', JSON.stringify(task_array)); // запись в json 
+    // Отображение задач
+    function displayTasks(filterStatus = 'all', filterPriority = 'all') {
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+        
+        tasks
+            .filter(task => 
+                (filterStatus === 'all' || (filterStatus === 'completed' && task.completed) || (filterStatus === 'notCompleted' && !task.completed)) &&
+                (filterPriority === 'all' || task.priority === filterPriority)
+            )
+            .forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'task' + (task.completed ? ' completed' : '');
+                taskDiv.innerHTML = `
+                    <strong>${task.title}</strong> - Приоритет: ${task.priority} <br>
+                    ${task.description} <br>
+                    Дата: ${task.dueDate} <br>
+                    <button onclick="toggleComplete(${task.id})">Отметить как выполненную</button>
+                    <button onclick="editTask(${task.id})">Редактировать</button>
+                    <button onclick="deleteTask(${task.id})">Удалить</button>
+                `;
+                taskList.appendChild(taskDiv);
+            });
     }
 
-    // загрузка задач и парсить json
-    function loadTasks() {
-        let tasks = JSON.parse(localStorage.getItem('tasks')) // ПАРСИМ в json
-            //console.log(tasks);
-        if (tasks) { //проверяем пустоту задач
-            for (task of tasks) {
-                addTask(task);
-            }
-        }
+    // Отметка задачи как выполненной
+    function toggleComplete(id) {
+        tasks = tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
+        displayTasks();
     }
+
+    // Редактирование задачи
+    function editTask(id) {
+        const task = tasks.find(task => task.id === id);
+        if (!task) return;
+
+        document.getElementById('title').value = task.title;
+        document.getElementById('description').value = task.description;
+        document.getElementById('priority').value = task.priority;
+        document.getElementById('dueDate').value = task.dueDate;
+
+        deleteTask(id);
+    }
+
+    // Удаление задачи
+    function deleteTask(id) {
+        tasks = tasks.filter(task => task.id !== id);
+        displayTasks();
+    }
+
+    // Применение фильтров
+    function applyFilters() {
+        const statusFilter = document.getElementById('statusFilter').value;
+        const priorityFilter = document.getElementById('priorityFilter').value;
+        displayTasks(statusFilter, priorityFilter);
+    }
+
+    // Изначальное отображение задач
+    displayTasks();
 </script>
 
+</body>
 </html>
